@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Endless Runner</title>
+    <style>
+        #game-container {
+            width: 800px;
+            height: 400px;
+            border: 2px solid black;
+            position: relative;
+            overflow: hidden;
+            background: #87CEEB;
+        }
+        #player {
+            width: 50px;
+            height: 50px;
+            background: red;
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+        }
+        .obstacle {
+            width: 30px;
+            height: 50px;
+            background: green;
+            position: absolute;
+            bottom: 0;
+            left: 800px;
+        }
+        #score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            color: white;
+        }
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="player"></div>
+        <div id="score">Score: 0</div>
+        <div id="game-over">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="final-score">0</span></p>
+            <button onclick="restartGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const gameContainer = document.getElementById('game-container');
+        const scoreElement = document.getElementById('score');
+        const gameOverElement = document.getElementById('game-over');
+        const finalScoreElement = document.getElementById('final-score');
+
+        let isJumping = false;
+        let score = 0;
+        let isGameOver = false;
+        let obstacleIntervals = [];
+        let jumpHeight = 0;
+        let jumpSpeed = 10;
+        let maxJumpHeight = 150;
+        let jumpUpInterval = null;
+        let jumpDownInterval = null;
+
+        // Jump function
+        function jump() {
+            // If already jumping, increase jump height
+            if (isJumping) {
+                // Clear existing intervals
+                if (jumpUpInterval) clearInterval(jumpUpInterval);
+                if (jumpDownInterval) clearInterval(jumpDownInterval);
+                
+                // Reset jump height to current position
+                jumpHeight = parseInt(player.style.bottom || '0');
+                
+                // Start a new jump from current height
+                startJump();
+                return;
+            }
+            
+            // Start a new jump from ground
+            isJumping = true;
+            jumpHeight = 0;
+            startJump();
+        }
+        
+        function startJump() {
+            // Jump up
+            jumpUpInterval = setInterval(() => {
+                if (jumpHeight >= maxJumpHeight) {
+                    clearInterval(jumpUpInterval);
+                    startFall();
+                    return;
+                }
+                jumpHeight += jumpSpeed;
+                player.style.bottom = jumpHeight + 'px';
+            }, 20);
+        }
+        
+        function startFall() {
+            // Jump down
+            jumpDownInterval = setInterval(() => {
+                if (jumpHeight <= 0) {
+                    clearInterval(jumpDownInterval);
+                    isJumping = false;
+                    player.style.bottom = '0px';
+                    return;
+                }
+                jumpHeight -= jumpSpeed;
+                player.style.bottom = jumpHeight + 'px';
+            }, 20);
+        }
+
+        // Generate obstacles
+        function generateObstacles() {
+            if (isGameOver) return;
+            
+            const obstacle = document.createElement('div');
+            obstacle.classList.add('obstacle');
+            gameContainer.appendChild(obstacle);
+            
+            let obstaclePosition = 800;
+            
+            function moveObstacle() {
+                if (isGameOver) {
+                    return;
+                }
+
+                obstaclePosition -= 5;
+                obstacle.style.left = obstaclePosition + 'px';
+
+                // Collision detection
+                const playerRect = player.getBoundingClientRect();
+                const obstacleRect = obstacle.getBoundingClientRect();
+
+                if (
+                    obstaclePosition > 0 && 
+                    obstaclePosition < 100 && 
+                    parseInt(player.style.bottom || '0') < 60 &&
+                    playerRect.right > obstacleRect.left &&
+                    playerRect.left < obstacleRect.right
+                ) {
+                    gameOver();
+                    return;
+                }
+
+                // Remove obstacle when it's off screen
+                if (obstaclePosition < -30) {
+                    obstacle.remove();
+                    score++;
+                    scoreElement.textContent = 'Score: ' + score;
+                }
+            }
+
+            const moveInterval = setInterval(moveObstacle, 20);
+            obstacleIntervals.push(moveInterval);
+        }
+
+        // Game over function
+        function gameOver() {
+            if (isGameOver) return;
+            
+            isGameOver = true;
+            obstacleIntervals.forEach(interval => clearInterval(interval));
+            obstacleIntervals = [];
+            
+            // Clear jump intervals
+            if (jumpUpInterval) clearInterval(jumpUpInterval);
+            if (jumpDownInterval) clearInterval(jumpDownInterval);
+            
+            finalScoreElement.textContent = score;
+            gameOverElement.style.display = 'block';
+        }
+
+        // Restart game function
+        function restartGame() {
+            isGameOver = false;
+            score = 0;
+            scoreElement.textContent = 'Score: 0';
+            gameOverElement.style.display = 'none';
+            player.style.bottom = '0px';
+            
+            // Reset jump variables
+            isJumping = false;
+            jumpHeight = 0;
+            if (jumpUpInterval) clearInterval(jumpUpInterval);
+            if (jumpDownInterval) clearInterval(jumpDownInterval);
+            
+            // Remove all obstacles
+            const obstacles = document.querySelectorAll('.obstacle');
+            obstacles.forEach(obstacle => obstacle.remove());
+            
+            // Clear existing intervals
+            obstacleIntervals.forEach(interval => clearInterval(interval));
+            obstacleIntervals = [];
+            
+            // Start new game
+            generateObstacles();
+            setInterval(generateObstacles, 2000);
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                jump();
+            }
+        });
+
+        // Start the game
+        generateObstacles();
+        setInterval(generateObstacles, 2000);
+    </script>
+</body>
+</html> 
